@@ -5,74 +5,94 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="AniVibe - A premium anime search and discovery portal connecting directly to the AniList API. Find detailed information on formats, episodes, trailers, scores, and studios.">
   <title>AniVibe // Premium Anime Discovery Portal</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
   
+  <!-- FontAwesome for UI Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   
+  <!-- Custom Core Design System -->
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
   <div class="app-container">
     
+    <!-- Top Header -->
     <header class="app-header">
       <a href="./" class="brand-logo">
         <i class="fa-solid fa-play"></i> AniVibe
       </a>
-      <div class="header-controls" style="display: flex; align-items: center; gap: 1.5rem;">
-        <div class="results-count" id="results-count">Connecting to the anime space...</div>
-        <div id="auth-panel" class="auth-panel">
-          </div>
+      <div class="header-controls" style="display: flex; align-items: center; gap: 1rem;">
+        <button class="watchlist-icon-btn" id="watchlist-header-btn" title="My Watchlist">
+          <i class="fa-solid fa-bookmark"></i>
+          <span class="watchlist-badge" id="watchlist-badge" style="display:none;">0</span>
+        </button>
       </div>
     </header>
+
+    <!-- Hero / Search Section -->
     <section class="hero-section">
-        <h1 class="hero-title">Explore the Anime Universe</h1>
-        <p class="hero-subtitle">Search, discover, and analyze thousands of anime series directly from the global database with real-time media coverage.</p>
-        
-        <div class="search-container">
-          <form id="search-form" class="search-wrapper">
-            <i class="fa-solid fa-magnifying-glass search-icon"></i>
-            <input type="text" id="search-input" class="search-input" placeholder="Type anime name (e.g. Attack on Titan, Frieren, Jujutsu)..." autocomplete="off">
-            <button type="submit" class="search-button">
-              <i class="fa-solid fa-bolt"></i> <span>Search</span>
-            </button>
-          </form>
-        </div>
-      </section>
-  
-      <div class="filter-panel" id="filter-panel">
-        <div class="filter-left">
-          <select id="genre-filter" class="filter-dropdown">
-            <option value="">All Genres</option>
-            <option value="Action">Action</option>
-            <option value="Adventure">Adventure</option>
-            <option value="Comedy">Comedy</option>
-            <option value="Drama">Drama</option>
-            <option value="Fantasy">Fantasy</option>
-            <option value="Mystery">Mystery</option>
-            <option value="Romance">Romance</option>
-            <option value="Sci-Fi">Sci-Fi</option>
-            <option value="Slice of Life">Slice of Life</option>
-            <option value="Supernatural">Supernatural</option>
-            <option value="Thriller">Thriller</option>
-          </select>
-  
-          <select id="format-filter" class="filter-dropdown">
-            <option value="">All Formats</option>
-            <option value="TV">TV Show</option>
-            <option value="MOVIE">Movie</option>
-            <option value="OVA">OVA</option>
-            <option value="ONA">ONA</option>
-            <option value="SPECIAL">Special</option>
-            <option value="MUSIC">Music</option>
-          </select>
-        </div>
+      <h1 class="hero-title">Explore the Anime Universe</h1>
+      <p class="hero-subtitle">Search, discover, and analyze thousands of anime series directly from the global database with real-time media coverage.</p>
+      
+      <div class="search-container">
+        <form id="search-form" class="search-wrapper">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="search-input" class="search-input" placeholder="Type anime name (e.g. Attack on Titan, Frieren, Jujutsu)..." autocomplete="off">
+          <button type="submit" class="search-button">
+            <i class="fa-solid fa-bolt"></i> <span>Search</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Filters & Settings Control Panel -->
+    <div class="filter-panel" id="filter-panel">
+      <div class="filter-left">
+        <!-- Genre Filter -->
+        <select id="genre-filter" class="filter-dropdown">
+          <option value="">All Genres</option>
+          <option value="Action">Action</option>
+          <option value="Adventure">Adventure</option>
+          <option value="Comedy">Comedy</option>
+          <option value="Drama">Drama</option>
+          <option value="Fantasy">Fantasy</option>
+          <option value="Mystery">Mystery</option>
+          <option value="Romance">Romance</option>
+          <option value="Sci-Fi">Sci-Fi</option>
+          <option value="Slice of Life">Slice of Life</option>
+          <option value="Supernatural">Supernatural</option>
+          <option value="Thriller">Thriller</option>
+        </select>
+
+        <!-- Format Filter -->
+        <select id="format-filter" class="filter-dropdown">
+          <option value="">All Formats</option>
+          <option value="TV">TV Show</option>
+          <option value="MOVIE">Movie</option>
+          <option value="OVA">OVA</option>
+          <option value="ONA">ONA</option>
+          <option value="SPECIAL">Special</option>
+          <option value="MUSIC">Music</option>
+        </select>
+      </div>
       
       <div class="filter-right">
-        </div>
+        <!-- Dynamic badge or status indicator can go here -->
+      </div>
     </div>
-    <main class="anime-grid" id="anime-grid">
-      </main>
 
+    <!-- Results Count bar -->
+    <div class="results-count-bar">
+      <span id="results-count">Connecting to the anime space...</span>
+    </div>
+
+    <!-- Main Anime Cards Grid -->
+    <main class="anime-grid" id="anime-grid">
+      <!-- Cards will be dynamically generated by JS -->
+    </main>
+
+    <!-- Empty State Container -->
     <div class="empty-state" id="empty-container" style="display: none;">
       <div class="state-icon">
         <i class="fa-regular fa-folder-open"></i>
@@ -81,6 +101,7 @@
       <p class="state-desc">We couldn't find any anime in the search results that matches your selected filters. Try removing search terms or changing your filters.</p>
     </div>
 
+    <!-- Error Recovery Container -->
     <div class="error-state" id="error-container" style="display: none;">
       <div class="state-icon">
         <i class="fa-solid fa-triangle-exclamation"></i>
@@ -92,7 +113,161 @@
       </button>
     </div>
 
+    <!-- Pagination Controls -->
     <div class="pagination-container" id="pagination-container">
-      </div>
+      <!-- Dynamic pagination buttons -->
+    </div>
 
   </div>
+
+  <!-- DETAILS DRAWER/MODAL SYSTEM -->
+  <div class="modal-backdrop" id="details-modal">
+    <div class="modal-container">
+      <button class="modal-close-btn" id="modal-close-btn" aria-label="Close details">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      
+      <!-- Banner Image -->
+      <div class="modal-banner">
+        <img id="modal-banner-img" src="" alt="Anime Banner Image">
+      </div>
+      
+      <div class="modal-body">
+        
+        <!-- Left Column: Cover & Info Card -->
+        <aside class="modal-sidebar">
+          <div class="modal-cover-wrapper">
+            <img id="modal-cover-img" src="" alt="Anime Cover Image">
+          </div>
+          
+          
+          
+          <div class="info-list">
+            <div class="info-item">
+              <span class="info-label">Format</span>
+              <span class="info-value" id="modal-info-format">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Episodes</span>
+              <span class="info-value" id="modal-info-episodes">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Episode Duration</span>
+              <span class="info-value" id="modal-info-duration">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Status</span>
+              <span class="info-value" id="modal-info-status">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Main Studio</span>
+              <span class="info-value" id="modal-info-studio">-</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Release Season</span>
+              <span class="info-value" id="modal-info-release">-</span>
+            </div>
+          </div>
+
+          <!-- Rating Stars (Logged in only) -->
+          <div id="modal-rating-container" class="modal-rating-row-sidebar" style="display: none;">
+            <span class="rating-label">My Rating</span>
+            <div id="rating-stars" class="rating-stars">
+              <i class="fa-regular fa-star" data-value="1"></i>
+              <i class="fa-regular fa-star" data-value="2"></i>
+              <i class="fa-regular fa-star" data-value="3"></i>
+              <i class="fa-regular fa-star" data-value="4"></i>
+              <i class="fa-regular fa-star" data-value="5"></i>
+            </div>
+          </div>
+        </aside>
+        
+        <!-- Right Column: Context & Stats -->
+        <main class="modal-main">
+          
+          <div class="modal-header-row" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; width: 100%;">
+            <div class="modal-titles">
+              <h2 class="modal-title-main" id="modal-title-main">Anime Title</h2>
+              <div class="modal-title-alt" id="modal-title-alt">Alternative Title</div>
+            </div>
+            <button id="favorite-toggle-btn" class="fav-btn-main" title="Add to Watchlist">
+              <i class="fa-regular fa-heart"></i>
+            </button>
+          </div>
+          
+          <!-- Genres List -->
+          <div class="genre-tags" id="modal-genres">
+            <!-- Dynamic genres pills -->
+          </div>
+
+          
+
+          <!-- Stats Grid -->
+          <div class="anime-stats-row">
+            <div class="stat-item">
+              <div class="stat-icon">
+                <i class="fa-solid fa-heart"></i>
+              </div>
+              <div class="stat-text">
+                <span class="stat-num" id="modal-stat-score">-%</span>
+                <span class="stat-lbl">Average Score</span>
+              </div>
+            </div>
+            
+            <div class="stat-item">
+              <div class="stat-icon">
+                <i class="fa-solid fa-fire"></i>
+              </div>
+              <div class="stat-text">
+                <span class="stat-num" id="modal-stat-pop">-</span>
+                <span class="stat-lbl">Popularity index</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="description-section">
+            <h3 class="section-title">
+              <i class="fa-solid fa-align-left"></i> Description
+            </h3>
+            <p class="description-content" id="modal-description">
+              No description available.
+            </p>
+          </div>
+
+          <!-- YouTube Trailer -->
+          <div class="trailer-section" id="modal-trailer-section" style="display: none;">
+            <h3 class="section-title">
+              <i class="fa-solid fa-circle-play"></i> Watch Trailer
+            </h3>
+            <div class="trailer-wrapper">
+              <iframe id="modal-trailer-iframe" src="" allowfullscreen allow="autoplay"></iframe>
+            </div>
+          </div>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- WATCHLIST MODAL -->
+  <div class="modal-backdrop" id="watchlist-modal">
+    <div class="modal-container watchlist-modal-container">
+      <button class="modal-close-btn" id="watchlist-modal-close-btn" aria-label="Close Watchlist">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="watchlist-modal-header">
+        <i class="fa-solid fa-bookmark"></i>
+        <h2>My Watchlist</h2>
+        <span id="watchlist-modal-count" class="watchlist-modal-count">0 anime</span>
+      </div>
+      <div id="watchlist-modal-body" class="watchlist-modal-body">
+        <!-- Dynamically populated -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Application Script -->
+  <script src="app.js?v=16"></script>
+</body>
+</html>

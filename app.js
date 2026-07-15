@@ -1,3 +1,4 @@
+// AniVibe Unified Controller
 if (typeof window === 'undefined') {
   // Node.js Backend Server (Port 8080)
   const http = require('http');

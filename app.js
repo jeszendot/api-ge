@@ -198,24 +198,33 @@ if (typeof window === 'undefined') {
     }
   }
 
-  // Exchange auth code for access token (Auth Code flow)
+  // Exchange auth code for access token
+  // On GitHub Pages: calls AniList directly via a CORS proxy (no backend needed)
+  // On local server: calls the local /api/token proxy
   async function exchangeCodeForToken(code) {
     const redirectUri = window.location.origin + window.location.pathname;
-    try {
-      const params = new URLSearchParams();
-      params.append('grant_type', 'authorization_code');
-      params.append('client_id', ANILIST_CLIENT_ID);
-      params.append('client_secret', ANILIST_CLIENT_SECRET);
-      params.append('redirect_uri', redirectUri);
-      params.append('code', code);
+    const isStaticHosting = window.location.hostname.endsWith('github.io');
 
-      const response = await fetch('/api/token', {
+    // Endpoint: CORS proxy on GitHub Pages, local server proxy on localhost
+    const ANILIST_TOKEN_URL = 'https://anilist.co/api/v2/oauth/token';
+    const endpoint = isStaticHosting
+      ? `https://corsproxy.io/?url=${encodeURIComponent(ANILIST_TOKEN_URL)}`
+      : '/api/token';
+
+    try {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: params
+        body: JSON.stringify({
+          grant_type: 'authorization_code',
+          client_id: ANILIST_CLIENT_ID,
+          client_secret: ANILIST_CLIENT_SECRET,
+          redirect_uri: redirectUri,
+          code: code
+        })
       });
 
       const result = await response.json();
@@ -225,7 +234,7 @@ if (typeof window === 'undefined') {
         state.accessToken = result.access_token;
       } else {
         const errorDetail = result.error_description || result.error || result.message || JSON.stringify(result);
-        throw new Error(`Server returned ${response.status}: ${errorDetail}`);
+        throw new Error(`Token exchange failed: ${errorDetail}`);
       }
     } catch (err) {
       console.error('OAuth code exchange failed:', err);
@@ -233,12 +242,10 @@ if (typeof window === 'undefined') {
     }
   }
 
-  // Redirect to AniList authorization page (automatically switches response type depending on hosting environment)
+  // Redirect to AniList authorization page
   function loginWithAniList() {
     const redirectUri = window.location.origin + window.location.pathname;
-    const isStaticHosting = window.location.hostname.endsWith('github.io');
-    const responseType = isStaticHosting ? 'token' : 'code';
-    window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${ANILIST_CLIENT_ID}&response_type=${responseType}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${ANILIST_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}`;
   }
 
   // Clear session and log out user

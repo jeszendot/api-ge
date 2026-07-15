@@ -95,8 +95,6 @@ if (typeof window === 'undefined') {
 
   // Browser Client Application
   const ANILIST_API_URL = 'https://graphql.anilist.co';
-  const ANILIST_CLIENT_ID = 45986;
-  const ANILIST_CLIENT_SECRET = 'CNylVvx4RWIe9tmlQTUKSixGfhAXJupdoc5ztMhQ';
   const ITEMS_PER_PAGE = 15;
 
   // Global State
@@ -109,8 +107,6 @@ if (typeof window === 'undefined') {
     pageInfo: {},
     loading: false,
     error: null,
-    accessToken: localStorage.getItem('anilist_token') || null,
-    user: null,
     activeAnimeLibraryEntry: null
   };
 
@@ -186,154 +182,6 @@ if (typeof window === 'undefined') {
     return isNaN(r) || isNaN(g) || isNaN(b) ? '59, 130, 246' : `${r}, ${g}, ${b}`;
   }
 
-  // Parse authorization code or token from URL
-  async function parseAuthCode() {
-    // 1. Implicit Grant flow (for GitHub Pages static hosting)
-    if (window.location.hash) {
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      const token = params.get('access_token');
-      if (token) {
-        localStorage.setItem('anilist_token', token);
-        state.accessToken = token;
-        window.history.replaceState({}, document.title, window.location.pathname);
-        return;
-      }
-    }
-
-    // 2. Auth Code flow (for local node server hosting)
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    if (code) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-      await exchangeCodeForToken(code);
-    }
-  }
-
-  // Exchange auth code for access token
-  // On GitHub Pages: calls AniList directly via a CORS proxy (no backend needed)
-  // On local server: calls the local /api/token proxy
-  async function exchangeCodeForToken(code) {
-    const redirectUri = window.location.origin + window.location.pathname;
-    const isStaticHosting = window.location.hostname.endsWith('github.io');
-
-    // Endpoint: CORS proxy on GitHub Pages, local server proxy on localhost
-    const ANILIST_TOKEN_URL = 'https://anilist.co/api/v2/oauth/token';
-    const endpoint = isStaticHosting
-      ? `https://corsproxy.io/?url=${encodeURIComponent(ANILIST_TOKEN_URL)}`
-      : '/api/token';
-
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          grant_type: 'authorization_code',
-          client_id: ANILIST_CLIENT_ID,
-          client_secret: ANILIST_CLIENT_SECRET,
-          redirect_uri: redirectUri,
-          code: code
-        })
-      });
-
-      const result = await response.json();
-      console.log('OAuth exchange result:', result);
-      if (response.ok && result.access_token) {
-        localStorage.setItem('anilist_token', result.access_token);
-        state.accessToken = result.access_token;
-      } else {
-        const errorDetail = result.error_description || result.error || result.message || JSON.stringify(result);
-        throw new Error(`Token exchange failed: ${errorDetail}`);
-      }
-    } catch (err) {
-      console.error('OAuth code exchange failed:', err);
-      alert('Authentication failed: ' + err.message);
-    }
-  }
-
-  // Redirect to AniList authorization page
-  function loginWithAniList() {
-    const redirectUri = window.location.origin + window.location.pathname;
-    window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${ANILIST_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}`;
-  }
-
-  // Clear session and log out user
-  function logout() {
-    localStorage.removeItem('anilist_token');
-    state.accessToken = null;
-    state.user = null;
-    state.activeAnimeLibraryEntry = null;
-    renderAuthPanel();
-    renderModalLibrarySection(null);
-  }
-
-  // Fetch logged in viewer profile
-  async function fetchViewerProfile() {
-    if (!state.accessToken) return;
-
-    const query = `
-      query {
-        Viewer {
-          id
-          name
-          avatar {
-            large
-          }
-        }
-      }
-    `;
-
-    try {
-      const response = await fetch(ANILIST_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${state.accessToken}`
-        },
-        body: JSON.stringify({ query })
-      });
-
-      const result = await response.json();
-      if (response.ok && result.data && result.data.Viewer) {
-        state.user = result.data.Viewer;
-      } else {
-        console.warn('OAuth token rejected. Logging out.');
-        logout();
-      }
-    } catch (err) {
-      console.error('Failed to query user profile:', err);
-    }
-  }
-
-  // Render header profile section
-  function renderAuthPanel() {
-    const authPanel = document.getElementById('auth-panel');
-    if (!authPanel) return;
-
-    if (state.user) {
-      authPanel.innerHTML = `
-        <div class="user-badge" title="Logged in as ${state.user.name}">
-          <img src="${state.user.avatar.large}" class="user-avatar" alt="${state.user.name}">
-          <span>${state.user.name}</span>
-          <button class="logout-btn" id="header-logout-btn" title="Sign Out">
-            <i class="fa-solid fa-right-from-bracket"></i>
-          </button>
-        </div>
-      `;
-      document.getElementById('header-logout-btn').addEventListener('click', logout);
-    } else {
-      authPanel.innerHTML = `
-        <button class="login-btn" id="header-login-btn">
-          <i class="fa-solid fa-right-to-bracket"></i> Connect
-        </button>
-      `;
-      document.getElementById('header-login-btn').addEventListener('click', loginWithAniList);
-    }
-  }
 
   // Query AniList directory search
   async function fetchAnime() {
@@ -351,17 +199,12 @@ if (typeof window === 'undefined') {
     }
 
     try {
-      const headers = {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      };
-      if (state.accessToken) {
-        headers['Authorization'] = `Bearer ${state.accessToken}`;
-      }
-
       const response = await fetch(ANILIST_API_URL, {
         method: 'POST',
-        headers: headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           query: GRAPHQL_QUERY,
           variables: variables
@@ -638,52 +481,12 @@ if (typeof window === 'undefined') {
 
     if (!anime) return;
 
-    if (state.accessToken) {
-      // Logged-in: fetch watchlist status from AniList API
-      favBtn.disabled = true;
-      const query = `
-        query ($mediaId: Int) {
-          Media(id: $mediaId) {
-            mediaListEntry {
-              id
-              status
-              score(format: POINT_100)
-            }
-          }
-        }
-      `;
-      try {
-        const response = await fetch(ANILIST_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${state.accessToken}`
-          },
-          body: JSON.stringify({ query, variables: { mediaId: anime.id } })
-        });
-        const result = await response.json();
-        if (response.ok && result.data && result.data.Media) {
-          const entry = result.data.Media.mediaListEntry;
-          state.activeAnimeLibraryEntry = entry
-            ? { id: entry.id, status: entry.status, score: entry.score }
-            : { id: null, status: 'REMOVE', score: 0 };
-          updateHeartUI(!!entry);
-          updateStarsUI(entry ? entry.score : 0);
-        }
-      } catch (err) {
-        console.error('Failed to load watchlist status:', err);
-      } finally {
-        favBtn.disabled = false;
-      }
-    } else {
-      // Guest mode: load from localStorage
-      const guestEntry = getGuestEntry(anime.id);
-      if (guestEntry) {
-        state.activeAnimeLibraryEntry = { id: anime.id, status: 'CURRENT', score: guestEntry.score || 0 };
-        updateHeartUI(true);
-        updateStarsUI(guestEntry.score || 0);
-      }
+    // Load from localStorage
+    const savedEntry = getGuestEntry(anime.id);
+    if (savedEntry) {
+      state.activeAnimeLibraryEntry = { id: anime.id, status: 'CURRENT', score: savedEntry.score || 0 };
+      updateHeartUI(true);
+      updateStarsUI(savedEntry.score || 0);
     }
 
     // Bind heart button
@@ -748,158 +551,37 @@ if (typeof window === 'undefined') {
     });
   }
 
-  // Add/remove anime from watchlist (guest or AniList)
+  // Add/remove anime from watchlist (localStorage)
   async function toggleWatchlist(mediaId) {
-    const favBtn = document.getElementById('favorite-toggle-btn');
-    if (!favBtn) return;
-
+    const list = getGuestWatchlist();
     const inList = state.activeAnimeLibraryEntry && state.activeAnimeLibraryEntry.id;
 
-    if (!state.accessToken) {
-      // Guest mode: read/write localStorage
-      const list = getGuestWatchlist();
-      if (inList) {
-        saveGuestWatchlist(list.filter(e => e.mediaId !== mediaId));
-        state.activeAnimeLibraryEntry = { id: null, status: 'REMOVE', score: 0 };
-        updateHeartUI(false);
-        updateStarsUI(0);
-      } else {
-        list.push({ mediaId, status: 'CURRENT', score: 0 });
-        saveGuestWatchlist(list);
-        state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: 0 };
-        updateHeartUI(true);
-      }
-      return;
-    }
-
-    // Logged-in: use AniList API mutations
-    favBtn.disabled = true;
-    try {
-      if (inList) {
-        const query = `
-          mutation ($id: Int) {
-            DeleteMediaListEntry(id: $id) {
-              deleted
-            }
-          }
-        `;
-        const response = await fetch(ANILIST_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${state.accessToken}`
-          },
-          body: JSON.stringify({
-            query,
-            variables: { id: state.activeAnimeLibraryEntry.id }
-          })
-        });
-        const result = await response.json();
-        if (response.ok) {
-          state.activeAnimeLibraryEntry = { id: null, status: 'REMOVE', score: 0 };
-          updateHeartUI(false);
-          updateStarsUI(0);
-        } else {
-          throw new Error(result.errors ? result.errors[0].message : 'Failed to delete');
-        }
-      } else {
-        const query = `
-          mutation ($mediaId: Int, $status: MediaListStatus) {
-            SaveMediaListEntry(mediaId: $mediaId, status: $status) {
-              id
-              status
-              score(format: POINT_100)
-            }
-          }
-        `;
-        const response = await fetch(ANILIST_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${state.accessToken}`
-          },
-          body: JSON.stringify({
-            query,
-            variables: { mediaId, status: 'CURRENT' }
-          })
-        });
-        const result = await response.json();
-        if (response.ok && result.data && result.data.SaveMediaListEntry) {
-          const entry = result.data.SaveMediaListEntry;
-          state.activeAnimeLibraryEntry = { id: entry.id, status: entry.status, score: entry.score };
-          updateHeartUI(true);
-          updateStarsUI(entry.score);
-        } else {
-          throw new Error(result.errors ? result.errors[0].message : 'Failed to save to Watchlist');
-        }
-      }
-    } catch (err) {
-      console.error('Watchlist toggle error:', err);
-      alert('Failed to update Watchlist: ' + err.message);
-    } finally {
-      favBtn.disabled = false;
+    if (inList) {
+      saveGuestWatchlist(list.filter(e => e.mediaId !== mediaId));
+      state.activeAnimeLibraryEntry = { id: null, status: 'REMOVE', score: 0 };
+      updateHeartUI(false);
+      updateStarsUI(0);
+    } else {
+      list.push({ mediaId, status: 'CURRENT', score: 0 });
+      saveGuestWatchlist(list);
+      state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: 0 };
+      updateHeartUI(true);
     }
   }
 
-  // Save score rating (guest or AniList)
-  async function saveRating(mediaId, scoreValue) {
-    if (!state.accessToken) {
-      // Guest mode: update score in localStorage
-      const list = getGuestWatchlist();
-      const existing = list.find(e => e.mediaId === mediaId);
-      if (existing) {
-        existing.score = scoreValue;
-      } else {
-        list.push({ mediaId, status: 'CURRENT', score: scoreValue });
-      }
-      saveGuestWatchlist(list);
-      state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: scoreValue };
-      updateHeartUI(true);
-      updateStarsUI(scoreValue);
-      return;
+  // Save score rating (localStorage)
+  function saveRating(mediaId, scoreValue) {
+    const list = getGuestWatchlist();
+    const existing = list.find(e => e.mediaId === mediaId);
+    if (existing) {
+      existing.score = scoreValue;
+    } else {
+      list.push({ mediaId, status: 'CURRENT', score: scoreValue });
     }
-
-    // Logged-in: use AniList SaveMediaListEntry mutation
-    try {
-      const query = `
-        mutation ($mediaId: Int, $status: MediaListStatus, $scoreRaw: Int) {
-          SaveMediaListEntry(mediaId: $mediaId, status: $status, scoreRaw: $scoreRaw) {
-            id
-            status
-            score(format: POINT_100)
-          }
-        }
-      `;
-      const currentStatus = (state.activeAnimeLibraryEntry && state.activeAnimeLibraryEntry.id) 
-        ? state.activeAnimeLibraryEntry.status 
-        : 'CURRENT';
-      const response = await fetch(ANILIST_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${state.accessToken}`
-        },
-        body: JSON.stringify({
-          query,
-          variables: { mediaId, status: currentStatus, scoreRaw: scoreValue }
-        })
-      });
-      const result = await response.json();
-      if (response.ok && result.data && result.data.SaveMediaListEntry) {
-        const entry = result.data.SaveMediaListEntry;
-        state.activeAnimeLibraryEntry = { id: entry.id, status: entry.status, score: entry.score };
-        updateHeartUI(true);
-        updateStarsUI(entry.score);
-      } else {
-        throw new Error(result.errors ? result.errors[0].message : 'Failed to save rating');
-      }
-    } catch (err) {
-      console.error('Score save error:', err);
-      alert('Failed to save score: ' + err.message);
-    }
+    saveGuestWatchlist(list);
+    state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: scoreValue };
+    updateHeartUI(true);
+    updateStarsUI(scoreValue);
   }
 
   // Debounce search function
@@ -924,12 +606,6 @@ if (typeof window === 'undefined') {
     const closeModalBtn = document.getElementById('modal-close-btn');
     const modalBackdrop = document.getElementById('details-modal');
     const retryBtn = document.getElementById('retry-btn');
-
-    await parseAuthCode();
-    if (state.accessToken) {
-      await fetchViewerProfile();
-    }
-    renderAuthPanel();
 
     const handleSearch = debounce(() => {
       state.searchQuery = searchInput.value;

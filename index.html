@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -25,3 +24,49 @@
           </div>
       </div>
     </header>
+    <section class="hero-section">
+        <h1 class="hero-title">Explore the Anime Universe</h1>
+        <p class="hero-subtitle">Search, discover, and analyze thousands of anime series directly from the global database with real-time media coverage.</p>
+        
+        <div class="search-container">
+          <form id="search-form" class="search-wrapper">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" id="search-input" class="search-input" placeholder="Type anime name (e.g. Attack on Titan, Frieren, Jujutsu)..." autocomplete="off">
+            <button type="submit" class="search-button">
+              <i class="fa-solid fa-bolt"></i> <span>Search</span>
+            </button>
+          </form>
+        </div>
+      </section>
+  
+      <div class="filter-panel" id="filter-panel">
+        <div class="filter-left">
+          <select id="genre-filter" class="filter-dropdown">
+            <option value="">All Genres</option>
+            <option value="Action">Action</option>
+            <option value="Adventure">Adventure</option>
+            <option value="Comedy">Comedy</option>
+            <option value="Drama">Drama</option>
+            <option value="Fantasy">Fantasy</option>
+            <option value="Mystery">Mystery</option>
+            <option value="Romance">Romance</option>
+            <option value="Sci-Fi">Sci-Fi</option>
+            <option value="Slice of Life">Slice of Life</option>
+            <option value="Supernatural">Supernatural</option>
+            <option value="Thriller">Thriller</option>
+          </select>
+  
+          <select id="format-filter" class="filter-dropdown">
+            <option value="">All Formats</option>
+            <option value="TV">TV Show</option>
+            <option value="MOVIE">Movie</option>
+            <option value="OVA">OVA</option>
+            <option value="ONA">ONA</option>
+            <option value="SPECIAL">Special</option>
+            <option value="MUSIC">Music</option>
+          </select>
+        </div>
+      
+      <div class="filter-right">
+        </div>
+    </div>

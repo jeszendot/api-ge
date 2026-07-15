@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="AniVibe - A premium anime search and discovery portal connecting directly to the AniList API. Find detailed information on formats, episodes, trailers, scores, and studios.">
   <title>AniVibe // Premium Anime Discovery Portal</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
   
   <!-- FontAwesome for UI Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
@@ -134,52 +135,7 @@
             <img id="modal-cover-img" src="" alt="Anime Cover Image">
           </div>
           
-          <!-- Library Update Manager Panel -->
-          <div id="modal-library-panel" class="library-panel">
-            <div id="library-logged-out" class="library-logged-out">
-              <p class="lib-hint">Log in to update progress</p>
-              <button id="lib-login-btn" class="lib-login-btn">
-                <i class="fa-solid fa-right-to-bracket"></i> Connect AniList
-              </button>
-            </div>
-            <div id="library-logged-in" class="library-logged-in" style="display: none;">
-              <div class="library-header">
-                <span class="library-title"><i class="fa-solid fa-list-check"></i> My List</span>
-                <button id="favorite-toggle-btn" class="fav-btn" title="Toggle Favorite">
-                  <i class="fa-regular fa-heart"></i>
-                </button>
-              </div>
-              <div class="library-inputs">
-                <div class="lib-group">
-                  <label for="lib-status">List Status</label>
-                  <select id="lib-status" class="lib-select">
-                    <option value="CURRENT">Watching</option>
-                    <option value="PLANNING">Planning</option>
-                    <option value="COMPLETED">Completed</option>
-                    <option value="DROPPED">Dropped</option>
-                    <option value="PAUSED">Paused</option>
-                    <option value="REMOVE">Not in List</option>
-                  </select>
-                </div>
-                <div class="lib-group">
-                  <label for="lib-progress">Episodes Watched</label>
-                  <div class="progress-input-wrapper">
-                    <button type="button" class="prog-adjust-btn" id="prog-btn-minus">-</button>
-                    <input type="number" id="lib-progress" class="lib-num" value="0" min="0">
-                    <button type="button" class="prog-adjust-btn" id="prog-btn-plus">+</button>
-                    <span class="lib-max-episodes" id="lib-max-episodes">/ -</span>
-                  </div>
-                </div>
-                <div class="lib-group">
-                  <label for="lib-score">Your Score (1-100)</label>
-                  <input type="number" id="lib-score" class="lib-num-score" value="0" min="0" max="100" placeholder="Rating">
-                </div>
-                <button type="button" id="lib-save-btn" class="lib-save-btn">
-                  <i class="fa-solid fa-circle-check"></i> Save Progress
-                </button>
-              </div>
-            </div>
-          </div>
+          
           
           <div class="info-list">
             <div class="info-item">
@@ -207,20 +163,39 @@
               <span class="info-value" id="modal-info-release">-</span>
             </div>
           </div>
+
+          <!-- Rating Stars (Logged in only) -->
+          <div id="modal-rating-container" class="modal-rating-row-sidebar" style="display: none;">
+            <span class="rating-label">My Rating</span>
+            <div id="rating-stars" class="rating-stars">
+              <i class="fa-regular fa-star" data-value="1"></i>
+              <i class="fa-regular fa-star" data-value="2"></i>
+              <i class="fa-regular fa-star" data-value="3"></i>
+              <i class="fa-regular fa-star" data-value="4"></i>
+              <i class="fa-regular fa-star" data-value="5"></i>
+            </div>
+          </div>
         </aside>
         
         <!-- Right Column: Context & Stats -->
         <main class="modal-main">
           
-          <div class="modal-titles">
-            <h2 class="modal-title-main" id="modal-title-main">Anime Title</h2>
-            <div class="modal-title-alt" id="modal-title-alt">Alternative Title</div>
+          <div class="modal-header-row" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; width: 100%;">
+            <div class="modal-titles">
+              <h2 class="modal-title-main" id="modal-title-main">Anime Title</h2>
+              <div class="modal-title-alt" id="modal-title-alt">Alternative Title</div>
+            </div>
+            <button id="favorite-toggle-btn" class="fav-btn-main" title="Add to Watchlist">
+              <i class="fa-regular fa-heart"></i>
+            </button>
           </div>
           
           <!-- Genres List -->
           <div class="genre-tags" id="modal-genres">
             <!-- Dynamic genres pills -->
           </div>
+
+          
 
           <!-- Stats Grid -->
           <div class="anime-stats-row">

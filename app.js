@@ -567,6 +567,7 @@ if (typeof window === 'undefined') {
       state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: 0 };
       updateHeartUI(true);
     }
+    updateWatchlistBadge();
   }
 
   // Save score rating (localStorage)
@@ -582,6 +583,7 @@ if (typeof window === 'undefined') {
     state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: scoreValue };
     updateHeartUI(true);
     updateStarsUI(scoreValue);
+    updateWatchlistBadge();
   }
 
   // Debounce search function
@@ -597,6 +599,116 @@ if (typeof window === 'undefined') {
     };
   }
 
+  // Update header watchlist badge count
+  function updateWatchlistBadge() {
+    const list = getGuestWatchlist();
+    const badge = document.getElementById('watchlist-badge');
+    if (!badge) return;
+    if (list.length > 0) {
+      badge.textContent = list.length;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  // Render watchlist modal body
+  function renderWatchlistModal() {
+    const list = getGuestWatchlist();
+    const body = document.getElementById('watchlist-modal-body');
+    const countEl = document.getElementById('watchlist-modal-count');
+    if (!body) return;
+
+    if (countEl) countEl.textContent = `${list.length} anime`;
+
+    if (list.length === 0) {
+      body.innerHTML = `
+        <div class="watchlist-empty-state">
+          <i class="fa-regular fa-bookmark"></i>
+          <p>Your watchlist is empty.<br>Click the ❤️ heart on any anime to add it.</p>
+        </div>
+      `;
+      return;
+    }
+
+    body.innerHTML = list.map(entry => {
+      const anime = state.animeList.find(a => a.id === entry.mediaId);
+      const title = anime
+        ? (anime.title.english || anime.title.romaji || anime.title.native)
+        : `Anime #${entry.mediaId}`;
+      const cover = anime ? (anime.coverImage.large || anime.coverImage.extraLarge) : '';
+      const starCount = entry.score ? Math.round(entry.score / 20) : 0;
+      const starsHtml = starCount > 0
+        ? Array.from({ length: 5 }, (_, i) =>
+            `<i class="fa-${i < starCount ? 'solid' : 'regular'} fa-star"></i>`
+          ).join('')
+        : `<span class="no-rating">Not rated</span>`;
+
+      return `
+        <div class="watchlist-item" data-media-id="${entry.mediaId}">
+          ${cover ? `<img class="watchlist-item-cover" src="${cover}" alt="${title}" loading="lazy">` : ''}
+          <div class="watchlist-item-info">
+            <div class="watchlist-item-title">${title}</div>
+            <div class="watchlist-item-rating">${starsHtml}</div>
+          </div>
+          <button class="watchlist-remove-btn" data-remove-id="${entry.mediaId}" title="Remove from watchlist">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Bind remove buttons
+    body.querySelectorAll('.watchlist-remove-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const mediaId = parseInt(btn.getAttribute('data-remove-id'));
+        const updated = getGuestWatchlist().filter(e => e.mediaId !== mediaId);
+        saveGuestWatchlist(updated);
+        updateWatchlistBadge();
+        renderWatchlistModal();
+        // If this is the currently open anime, update its heart
+        if (state.activeAnimeLibraryEntry && state.activeAnimeLibraryEntry.id === mediaId) {
+          state.activeAnimeLibraryEntry = { id: null, status: 'REMOVE', score: 0 };
+          updateHeartUI(false);
+          updateStarsUI(0);
+        }
+      });
+    });
+
+    // Bind click to open anime modal
+    body.querySelectorAll('.watchlist-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.watchlist-remove-btn')) return;
+        const mediaId = parseInt(item.getAttribute('data-media-id'));
+        const anime = state.animeList.find(a => a.id === mediaId);
+        if (anime) {
+          closeWatchlistModal();
+          openModal(anime);
+        }
+      });
+    });
+  }
+
+  // Open watchlist modal
+  function openWatchlistModal() {
+    renderWatchlistModal();
+    const modal = document.getElementById('watchlist-modal');
+    if (modal) {
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  // Close watchlist modal
+  function closeWatchlistModal() {
+    const modal = document.getElementById('watchlist-modal');
+    if (modal) {
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+  }
+
   // DOM Content Loaded initializations
   document.addEventListener('DOMContentLoaded', async () => {
     const searchInput = document.getElementById('search-input');
@@ -606,6 +718,11 @@ if (typeof window === 'undefined') {
     const closeModalBtn = document.getElementById('modal-close-btn');
     const modalBackdrop = document.getElementById('details-modal');
     const retryBtn = document.getElementById('retry-btn');
+    const watchlistHeaderBtn = document.getElementById('watchlist-header-btn');
+    const watchlistCloseBtn = document.getElementById('watchlist-modal-close-btn');
+    const watchlistModalBackdrop = document.getElementById('watchlist-modal');
+
+    updateWatchlistBadge();
 
     const handleSearch = debounce(() => {
       state.searchQuery = searchInput.value;
@@ -637,9 +754,17 @@ if (typeof window === 'undefined') {
       if (e.target === modalBackdrop) closeModal();
     });
 
+    // Watchlist modal events
+    watchlistHeaderBtn.addEventListener('click', openWatchlistModal);
+    watchlistCloseBtn.addEventListener('click', closeWatchlistModal);
+    watchlistModalBackdrop.addEventListener('click', (e) => {
+      if (e.target === watchlistModalBackdrop) closeWatchlistModal();
+    });
+
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modalBackdrop.classList.contains('active')) {
-        closeModal();
+      if (e.key === 'Escape') {
+        if (modalBackdrop.classList.contains('active')) closeModal();
+        if (watchlistModalBackdrop.classList.contains('active')) closeWatchlistModal();
       }
     });
 

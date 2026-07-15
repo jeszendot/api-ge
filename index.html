@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   
   <!-- Custom Core Design System -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
@@ -22,11 +22,11 @@
       <a href="./" class="brand-logo">
         <i class="fa-solid fa-play"></i> AniVibe
       </a>
-      <div class="header-controls" style="display: flex; align-items: center; gap: 1.5rem;">
-        <div class="results-count" id="results-count">Connecting to the anime space...</div>
-        <div id="auth-panel" class="auth-panel">
-          <!-- Dynamically populated login/user indicator -->
-        </div>
+      <div class="header-controls" style="display: flex; align-items: center; gap: 1rem;">
+        <button class="watchlist-icon-btn" id="watchlist-header-btn" title="My Watchlist">
+          <i class="fa-solid fa-bookmark"></i>
+          <span class="watchlist-badge" id="watchlist-badge" style="display:none;">0</span>
+        </button>
       </div>
     </header>
 
@@ -80,6 +80,11 @@
       <div class="filter-right">
         <!-- Dynamic badge or status indicator can go here -->
       </div>
+    </div>
+
+    <!-- Results Count bar -->
+    <div class="results-count-bar">
+      <span id="results-count">Connecting to the anime space...</span>
     </div>
 
     <!-- Main Anime Cards Grid -->
@@ -245,7 +250,24 @@
     </div>
   </div>
 
+  <!-- WATCHLIST MODAL -->
+  <div class="modal-backdrop" id="watchlist-modal">
+    <div class="modal-container watchlist-modal-container">
+      <button class="modal-close-btn" id="watchlist-modal-close-btn" aria-label="Close Watchlist">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <div class="watchlist-modal-header">
+        <i class="fa-solid fa-bookmark"></i>
+        <h2>My Watchlist</h2>
+        <span id="watchlist-modal-count" class="watchlist-modal-count">0 anime</span>
+      </div>
+      <div id="watchlist-modal-body" class="watchlist-modal-body">
+        <!-- Dynamically populated -->
+      </div>
+    </div>
+  </div>
+
   <!-- Main Application Script -->
-  <script src="app.js?v=15"></script>
+  <script src="app.js?v=16"></script>
 </body>
 </html>

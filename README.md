@@ -136,7 +136,7 @@ mutation ($id: Int) {
 | File | Purpose |
 |------|---------|
 | [`index.html`](./index.html) | Main page structure — header, search, filters, grid, modals |
-| [`styles.css`](./styles.css) | Full CSS design system — dark theme, layout, animations, modal, watchlist styles |
+| [`style.css`](./style.css) | Full CSS design system — dark theme, layout, animations, modal, watchlist styles |
 | [`app.js`](./app.js) | Unified controller — Node.js local server (top) + browser client logic (bottom). Handles GraphQL fetch, state management, UI rendering, localStorage watchlist/ratings, and modal logic |
 
 ---

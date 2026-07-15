@@ -174,8 +174,22 @@ if (typeof window === 'undefined') {
     return isNaN(r) || isNaN(g) || isNaN(b) ? '59, 130, 246' : `${r}, ${g}, ${b}`;
   }
 
-  // Parse authorization code from URL
+  // Parse authorization code or token from URL
   async function parseAuthCode() {
+    // 1. Implicit Grant flow (for GitHub Pages static hosting)
+    if (window.location.hash) {
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+      const token = params.get('access_token');
+      if (token) {
+        localStorage.setItem('anilist_token', token);
+        state.accessToken = token;
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+    }
+
+    // 2. Auth Code flow (for local node server hosting)
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
     if (code) {
@@ -184,7 +198,7 @@ if (typeof window === 'undefined') {
     }
   }
 
-  // Exchange auth code for access token
+  // Exchange auth code for access token (Auth Code flow)
   async function exchangeCodeForToken(code) {
     const redirectUri = window.location.origin + window.location.pathname;
     try {
@@ -219,10 +233,12 @@ if (typeof window === 'undefined') {
     }
   }
 
-  // Redirect to AniList authorization page
+  // Redirect to AniList authorization page (automatically switches response type depending on hosting environment)
   function loginWithAniList() {
     const redirectUri = window.location.origin + window.location.pathname;
-    window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${ANILIST_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const isStaticHosting = window.location.hostname.endsWith('github.io');
+    const responseType = isStaticHosting ? 'token' : 'code';
+    window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${ANILIST_CLIENT_ID}&response_type=${responseType}&redirect_uri=${encodeURIComponent(redirectUri)}`;
   }
 
   // Clear session and log out user

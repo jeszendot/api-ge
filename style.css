@@ -821,191 +821,68 @@ body {
 }
 
 /* Sidebar Library Updates Panel */
-.library-panel {
-  width: 100%;
+/* Modal Title Floating Heart Watchlist Toggle */
+.fav-btn-main {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.6rem;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.2s ease;
+  padding: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fav-btn-main:hover {
+  transform: scale(1.18);
+  color: var(--color-danger);
+}
+
+.fav-btn-main.active {
+  color: var(--color-danger);
+}
+
+/* Standalone Modal Rating Stars Layout (Sidebar Card) */
+.modal-rating-row-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   background: var(--bg-surface-elevated);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 0.5rem;
-}
-
-.library-logged-out {
-  text-align: center;
-  padding: 0.5rem 0;
-}
-
-.lib-hint {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.75rem;
-}
-
-.lib-login-btn {
-  background: var(--theme-color);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 0.45rem 1rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  transition: var(--transition-fast);
 }
 
-.lib-login-btn:hover {
-  background: var(--theme-color-hover);
-}
-
-.library-logged-in {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.library-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-}
-
-.library-title {
+.rating-label {
   font-size: 0.85rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.fav-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 1rem;
-  transition: transform 0.15s ease;
-  padding: 0.2rem;
-}
-
-.fav-btn:hover {
-  transform: scale(1.1);
-  color: var(--color-danger);
-}
-
-.fav-btn.active {
-  color: var(--color-danger);
-}
-
-.library-inputs {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-}
-
-.lib-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.lib-group label {
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
-.lib-select {
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  border-radius: 6px;
-  padding: 0.4rem 0.5rem;
-  font-size: 0.8rem;
-  font-family: var(--font-body);
-  outline: none;
-  cursor: pointer;
-}
-
-.progress-input-wrapper {
+.rating-stars {
   display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.prog-adjust-btn {
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 0.9rem;
-  transition: var(--transition-fast);
-}
-
-.prog-adjust-btn:hover {
-  border-color: var(--border-hover);
-  color: var(--text-primary);
-}
-
-.lib-num, .lib-num-score {
-  background: var(--bg-canvas);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  border-radius: 6px;
-  padding: 0.4rem 0.5rem;
-  font-size: 0.8rem;
-  font-family: var(--font-body);
-  outline: none;
-  text-align: center;
-}
-
-.lib-num {
-  width: 48px;
-}
-
-.lib-num-score {
-  text-align: left;
-}
-
-.lib-max-episodes {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  margin-left: 0.25rem;
-}
-
-.lib-save-btn {
-  background: var(--theme-color);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 0.5rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 0.35rem;
-  width: 100%;
-  margin-top: 0.25rem;
-  transition: var(--transition-fast);
+  cursor: pointer;
 }
 
-.lib-save-btn:hover {
-  background: var(--theme-color-hover);
+.rating-stars i {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  transition: transform 0.1s ease, color 0.15s ease;
+}
+
+.rating-stars i:hover,
+.rating-stars i.hover {
+  color: #fbbf24;
+  transform: scale(1.2);
+}
+
+.rating-stars i.active {
+  color: #fbbf24;
 }
 
 /* ==========================================================================

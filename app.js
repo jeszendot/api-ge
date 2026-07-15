@@ -208,7 +208,7 @@ if (typeof window === 'undefined') {
     // Endpoint: CORS proxy on GitHub Pages, local server proxy on localhost
     const ANILIST_TOKEN_URL = 'https://anilist.co/api/v2/oauth/token';
     const endpoint = isStaticHosting
-      ? `https://corsproxy.io/?url=${encodeURIComponent(ANILIST_TOKEN_URL)}`
+      ? `https://corsproxy.io/?${encodeURIComponent(ANILIST_TOKEN_URL)}`
       : '/api/token';
 
     try {
@@ -232,6 +232,9 @@ if (typeof window === 'undefined') {
       if (response.ok && result.access_token) {
         localStorage.setItem('anilist_token', result.access_token);
         state.accessToken = result.access_token;
+        // Update the UI immediately after login
+        await fetchViewerProfile();
+        renderAuthPanel();
       } else {
         const errorDetail = result.error_description || result.error || result.message || JSON.stringify(result);
         throw new Error(`Token exchange failed: ${errorDetail}`);
@@ -241,6 +244,7 @@ if (typeof window === 'undefined') {
       alert('Authentication failed: ' + err.message);
     }
   }
+
 
   // Redirect to AniList authorization page
   function loginWithAniList() {

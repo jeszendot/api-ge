@@ -114,6 +114,18 @@ if (typeof window === 'undefined') {
     activeAnimeLibraryEntry: null
   };
 
+  // Guest Watchlist Helpers (localStorage-based, no login required)
+  function getGuestWatchlist() {
+    try { return JSON.parse(localStorage.getItem('guest_watchlist') || '[]'); }
+    catch { return []; }
+  }
+  function saveGuestWatchlist(list) {
+    localStorage.setItem('guest_watchlist', JSON.stringify(list));
+  }
+  function getGuestEntry(mediaId) {
+    return getGuestWatchlist().find(e => e.mediaId === mediaId) || null;
+  }
+
   // GraphQL query to search anime list
   const GRAPHQL_QUERY = `
   query ($search: String, $page: Int, $perPage: Int) {
@@ -615,100 +627,87 @@ if (typeof window === 'undefined') {
 
     if (!favBtn) return;
 
-    // Logged-out default state
+    // Reset heart/stars to default
     favBtn.classList.remove('active');
     favBtn.innerHTML = `<i class="fa-regular fa-heart"></i>`;
     favBtn.title = "Add to Watchlist";
-    if (ratingContainer) ratingContainer.style.display = 'none';
+    if (ratingContainer) ratingContainer.style.display = 'flex';
     updateStarsUI(0);
-    
+
     state.activeAnimeLibraryEntry = { id: null, status: 'REMOVE', score: 0 };
 
-    if (!anime || !state.accessToken) {
-      const cleanFavBtn = favBtn.cloneNode(true);
-      favBtn.replaceWith(cleanFavBtn);
-      cleanFavBtn.addEventListener('click', () => {
-        alert('Please connect your AniList account to add anime to your watchlist!');
-      });
-      return;
-    }
+    if (!anime) return;
 
-    favBtn.disabled = true;
-    if (ratingContainer) ratingContainer.style.display = 'flex';
-
-    const query = `
-      query ($mediaId: Int) {
-        Media(id: $mediaId) {
-          mediaListEntry {
-            id
-            status
-            score(format: POINT_100)
+    if (state.accessToken) {
+      // Logged-in: fetch watchlist status from AniList API
+      favBtn.disabled = true;
+      const query = `
+        query ($mediaId: Int) {
+          Media(id: $mediaId) {
+            mediaListEntry {
+              id
+              status
+              score(format: POINT_100)
+            }
           }
         }
+      `;
+      try {
+        const response = await fetch(ANILIST_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${state.accessToken}`
+          },
+          body: JSON.stringify({ query, variables: { mediaId: anime.id } })
+        });
+        const result = await response.json();
+        if (response.ok && result.data && result.data.Media) {
+          const entry = result.data.Media.mediaListEntry;
+          state.activeAnimeLibraryEntry = entry
+            ? { id: entry.id, status: entry.status, score: entry.score }
+            : { id: null, status: 'REMOVE', score: 0 };
+          updateHeartUI(!!entry);
+          updateStarsUI(entry ? entry.score : 0);
+        }
+      } catch (err) {
+        console.error('Failed to load watchlist status:', err);
+      } finally {
+        favBtn.disabled = false;
       }
-    `;
-
-    try {
-      const response = await fetch(ANILIST_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${state.accessToken}`
-        },
-        body: JSON.stringify({
-          query,
-          variables: { mediaId: anime.id }
-        })
-      });
-
-      const result = await response.json();
-      if (response.ok && result.data && result.data.Media) {
-        const media = result.data.Media;
-        const entry = media.mediaListEntry;
-
-        state.activeAnimeLibraryEntry = entry 
-          ? { id: entry.id, status: entry.status, score: entry.score } 
-          : { id: null, status: 'REMOVE', score: 0 };
-
-        updateHeartUI(!!entry);
-        updateStarsUI(entry ? entry.score : 0);
+    } else {
+      // Guest mode: load from localStorage
+      const guestEntry = getGuestEntry(anime.id);
+      if (guestEntry) {
+        state.activeAnimeLibraryEntry = { id: anime.id, status: 'CURRENT', score: guestEntry.score || 0 };
+        updateHeartUI(true);
+        updateStarsUI(guestEntry.score || 0);
       }
-    } catch (err) {
-      console.error('Failed to load watchlist status:', err);
-    } finally {
-      favBtn.disabled = false;
     }
 
+    // Bind heart button
     const cleanFavBtn = favBtn.cloneNode(true);
     favBtn.replaceWith(cleanFavBtn);
     cleanFavBtn.addEventListener('click', () => toggleWatchlist(anime.id));
 
+    // Bind Stars Hover and Click handlers
     if (starsContainer) {
       const cleanStarsContainer = starsContainer.cloneNode(true);
       starsContainer.replaceWith(cleanStarsContainer);
-      
       const newStars = cleanStarsContainer.querySelectorAll('i');
       newStars.forEach(star => {
         star.addEventListener('mouseenter', (e) => {
           const val = parseInt(e.target.getAttribute('data-value'));
           newStars.forEach((s, idx) => {
-            if (idx + 1 <= val) {
-              s.className = 'fa-solid fa-star hover';
-            } else {
-              s.className = 'fa-regular fa-star';
-            }
+            s.className = idx + 1 <= val ? 'fa-solid fa-star hover' : 'fa-regular fa-star';
           });
         });
-        
         star.addEventListener('mouseleave', () => {
           updateStarsUI(state.activeAnimeLibraryEntry ? state.activeAnimeLibraryEntry.score : 0);
         });
-        
         star.addEventListener('click', (e) => {
-          console.log('Star clicked, e.target:', e.target);
           const val = parseInt(e.target.getAttribute('data-value'));
-          console.log('Star numeric value:', val);
           saveRating(anime.id, val * 20);
         });
       });
@@ -749,14 +748,32 @@ if (typeof window === 'undefined') {
     });
   }
 
-  // Add/remove anime from watchlist
+  // Add/remove anime from watchlist (guest or AniList)
   async function toggleWatchlist(mediaId) {
     const favBtn = document.getElementById('favorite-toggle-btn');
     if (!favBtn) return;
-    
-    favBtn.disabled = true;
+
     const inList = state.activeAnimeLibraryEntry && state.activeAnimeLibraryEntry.id;
-    
+
+    if (!state.accessToken) {
+      // Guest mode: read/write localStorage
+      const list = getGuestWatchlist();
+      if (inList) {
+        saveGuestWatchlist(list.filter(e => e.mediaId !== mediaId));
+        state.activeAnimeLibraryEntry = { id: null, status: 'REMOVE', score: 0 };
+        updateHeartUI(false);
+        updateStarsUI(0);
+      } else {
+        list.push({ mediaId, status: 'CURRENT', score: 0 });
+        saveGuestWatchlist(list);
+        state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: 0 };
+        updateHeartUI(true);
+      }
+      return;
+    }
+
+    // Logged-in: use AniList API mutations
+    favBtn.disabled = true;
     try {
       if (inList) {
         const query = `
@@ -778,12 +795,9 @@ if (typeof window === 'undefined') {
             variables: { id: state.activeAnimeLibraryEntry.id }
           })
         });
-
         const result = await response.json();
         if (response.ok) {
-          state.activeAnimeLibraryEntry.id = null;
-          state.activeAnimeLibraryEntry.status = 'REMOVE';
-          state.activeAnimeLibraryEntry.score = 0;
+          state.activeAnimeLibraryEntry = { id: null, status: 'REMOVE', score: 0 };
           updateHeartUI(false);
           updateStarsUI(0);
         } else {
@@ -811,13 +825,10 @@ if (typeof window === 'undefined') {
             variables: { mediaId, status: 'CURRENT' }
           })
         });
-
         const result = await response.json();
         if (response.ok && result.data && result.data.SaveMediaListEntry) {
           const entry = result.data.SaveMediaListEntry;
-          state.activeAnimeLibraryEntry.id = entry.id;
-          state.activeAnimeLibraryEntry.status = entry.status;
-          state.activeAnimeLibraryEntry.score = entry.score;
+          state.activeAnimeLibraryEntry = { id: entry.id, status: entry.status, score: entry.score };
           updateHeartUI(true);
           updateStarsUI(entry.score);
         } else {
@@ -832,9 +843,25 @@ if (typeof window === 'undefined') {
     }
   }
 
-  // Save score rating
+  // Save score rating (guest or AniList)
   async function saveRating(mediaId, scoreValue) {
-    console.log('saveRating trigger request for media:', mediaId, 'scoreRaw:', scoreValue);
+    if (!state.accessToken) {
+      // Guest mode: update score in localStorage
+      const list = getGuestWatchlist();
+      const existing = list.find(e => e.mediaId === mediaId);
+      if (existing) {
+        existing.score = scoreValue;
+      } else {
+        list.push({ mediaId, status: 'CURRENT', score: scoreValue });
+      }
+      saveGuestWatchlist(list);
+      state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: scoreValue };
+      updateHeartUI(true);
+      updateStarsUI(scoreValue);
+      return;
+    }
+
+    // Logged-in: use AniList SaveMediaListEntry mutation
     try {
       const query = `
         mutation ($mediaId: Int, $status: MediaListStatus, $scoreRaw: Int) {
@@ -845,11 +872,9 @@ if (typeof window === 'undefined') {
           }
         }
       `;
-
       const currentStatus = (state.activeAnimeLibraryEntry && state.activeAnimeLibraryEntry.id) 
         ? state.activeAnimeLibraryEntry.status 
         : 'CURRENT';
-
       const response = await fetch(ANILIST_API_URL, {
         method: 'POST',
         headers: {
@@ -862,14 +887,10 @@ if (typeof window === 'undefined') {
           variables: { mediaId, status: currentStatus, scoreRaw: scoreValue }
         })
       });
-
       const result = await response.json();
-      console.log('saveRating API result:', JSON.stringify(result));
       if (response.ok && result.data && result.data.SaveMediaListEntry) {
         const entry = result.data.SaveMediaListEntry;
-        state.activeAnimeLibraryEntry.id = entry.id;
-        state.activeAnimeLibraryEntry.status = entry.status;
-        state.activeAnimeLibraryEntry.score = entry.score;
+        state.activeAnimeLibraryEntry = { id: entry.id, status: entry.status, score: entry.score };
         updateHeartUI(true);
         updateStarsUI(entry.score);
       } else {

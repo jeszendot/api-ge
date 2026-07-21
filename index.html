@@ -1,3 +1,4 @@
+<!-- See TODO block at the top of app.js for known bugs / security / a11y improvements to make before shipping this further. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -39,6 +40,9 @@
         <form id="search-form" class="search-wrapper">
           <i class="fa-solid fa-magnifying-glass search-icon"></i>
           <input type="text" id="search-input" class="search-input" placeholder="Type anime name (e.g. Attack on Titan, Frieren, Jujutsu)..." autocomplete="off">
+          <button type="button" id="search-clear-btn" class="search-clear-btn" title="Clear search" style="display:none;">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
           <button type="submit" class="search-button">
             <i class="fa-solid fa-bolt"></i> <span>Search</span>
           </button>
@@ -74,6 +78,15 @@
           <option value="ONA">ONA</option>
           <option value="SPECIAL">Special</option>
           <option value="MUSIC">Music</option>
+        </select>
+
+        <!-- Sort Order -->
+        <select id="sort-filter" class="filter-dropdown">
+          <option value="POPULARITY_DESC">Sort: Popularity</option>
+          <option value="SCORE_DESC">Sort: Highest Score</option>
+          <option value="TRENDING_DESC">Sort: Trending</option>
+          <option value="START_DATE_DESC">Sort: Newest</option>
+
         </select>
       </div>
       
@@ -273,6 +286,6 @@
   </div>
 
   <!-- Main Application Script -->
-  <script src="app.js?v=16"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

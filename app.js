@@ -1,4 +1,3 @@
-// AniVibe Unified Controller
 if (typeof window === 'undefined') {
   // Node.js Backend Server (Port 8080)
   const http = require('http');
@@ -68,7 +67,17 @@ if (typeof window === 'undefined') {
     if (req.method === 'GET') {
       let urlPath = req.url.split('?')[0];
       if (urlPath === '/') urlPath = '/index.html';
-      const filePath = path.join(__dirname, urlPath);
+
+      // Normalize away ../ segments and confirm the resolved path is still
+      // inside __dirname before touching the filesystem (path traversal guard).
+      const safeSuffix = path.normalize(urlPath).replace(/^(\.\.[/\\])+/, '');
+      const filePath = path.join(__dirname, safeSuffix);
+      if (!filePath.startsWith(path.normalize(__dirname))) {
+        res.writeHead(403, { 'Content-Type': 'text/html' });
+        res.end('<h1>403 Forbidden</h1>', 'utf-8');
+        return;
+      }
+
       const extname = String(path.extname(filePath)).toLowerCase();
       const contentType = MIME_TYPES[extname] || 'application/octet-stream';
 
@@ -103,6 +112,7 @@ if (typeof window === 'undefined') {
     currentPage: 1,
     selectedGenre: '',
     selectedFormat: '',
+    sortBy: 'POPULARITY_DESC',
     animeList: [],
     pageInfo: {},
     loading: false,
@@ -124,7 +134,7 @@ if (typeof window === 'undefined') {
 
   // GraphQL query to search anime list
   const GRAPHQL_QUERY = `
-  query ($search: String, $page: Int, $perPage: Int) {
+  query ($search: String, $page: Int, $perPage: Int, $genre: String, $format: MediaFormat, $sort: [MediaSort]) {
     Page(page: $page, perPage: $perPage) {
       pageInfo {
         total
@@ -132,7 +142,7 @@ if (typeof window === 'undefined') {
         lastPage
         hasNextPage
       }
-      media(search: $search, type: ANIME, sort: POPULARITY_DESC) {
+      media(search: $search, type: ANIME, genre: $genre, format: $format, sort: $sort) {
         id
         title {
           english
@@ -182,6 +192,31 @@ if (typeof window === 'undefined') {
     return isNaN(r) || isNaN(g) || isNaN(b) ? '59, 130, 246' : `${r}, ${g}, ${b}`;
   }
 
+  // Escape untrusted text before interpolating into innerHTML template strings.
+  // AniList titles/studio names are community-editable, so treat them as untrusted.
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Build a watchlist entry, caching title/cover so items removed from
+  // state.animeList (e.g. off the current page) still render correctly
+  // in the watchlist modal.
+  function buildWatchlistEntry(anime, overrides = {}) {
+    return {
+      mediaId: anime.id,
+      status: 'CURRENT',
+      score: 0,
+      title: anime.title.english || anime.title.romaji || anime.title.native,
+      cover: anime.coverImage.large || anime.coverImage.extraLarge || '',
+      ...overrides
+    };
+  }
 
   // Query AniList directory search
   async function fetchAnime() {
@@ -191,11 +226,18 @@ if (typeof window === 'undefined') {
 
     const variables = {
       page: state.currentPage,
-      perPage: ITEMS_PER_PAGE
+      perPage: ITEMS_PER_PAGE,
+      sort: [state.sortBy || 'POPULARITY_DESC']
     };
 
     if (state.searchQuery.trim() !== '') {
       variables.search = state.searchQuery.trim();
+    }
+    if (state.selectedGenre) {
+      variables.genre = state.selectedGenre;
+    }
+    if (state.selectedFormat) {
+      variables.format = state.selectedFormat;
     }
 
     try {
@@ -211,7 +253,23 @@ if (typeof window === 'undefined') {
         })
       });
 
-      const result = await response.json();
+      // AniList enforces a per-IP rate limit and responds with 429 + a
+      // Retry-After header when exceeded. Wait it out and retry once
+      // automatically instead of surfacing a generic connection error.
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '5', 10);
+        const resultsCount = document.getElementById('results-count');
+        if (resultsCount) resultsCount.innerHTML = `Rate limited by AniList — retrying in ${retryAfter}s...`;
+        await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+        return fetchAnime();
+      }
+
+      let result;
+      try {
+        result = await response.json();
+      } catch {
+        throw new Error('Received an invalid response from AniList.');
+      }
 
       if (response.ok && result.data && result.data.Page) {
         state.animeList = result.data.Page.media || [];
@@ -256,15 +314,10 @@ if (typeof window === 'undefined') {
       return;
     }
 
-    let items = [...state.animeList];
-    
-    if (state.selectedGenre) {
-      items = items.filter(anime => anime.genres && anime.genres.includes(state.selectedGenre));
-    }
-    
-    if (state.selectedFormat) {
-      items = items.filter(anime => anime.format === state.selectedFormat);
-    }
+    // Genre/format filters are now sent to the AniList API itself (see
+    // fetchAnime), so state.animeList already reflects the active filters
+    // across the whole catalog, not just the current page.
+    const items = state.animeList;
 
     if (items.length === 0) {
       gridContainer.style.display = 'none';
@@ -274,7 +327,8 @@ if (typeof window === 'undefined') {
       return;
     }
 
-    resultsCount.innerHTML = `Showing <span>${items.length}</span> anime on page <span>${state.currentPage}</span>`;
+    const totalStr = state.pageInfo && state.pageInfo.total ? state.pageInfo.total.toLocaleString() : items.length;
+    resultsCount.innerHTML = `Showing <span>${items.length}</span> of <span>${totalStr}</span> anime — page <span>${state.currentPage}</span>`;
     gridContainer.innerHTML = items.map(anime => getAnimeCardHtml(anime)).join('');
     
     document.querySelectorAll('.anime-card').forEach(card => {
@@ -285,20 +339,33 @@ if (typeof window === 'undefined') {
       });
     });
 
+    // Quick watchlist toggle straight from the grid, without opening the modal
+    document.querySelectorAll('.card-quick-heart').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const animeId = parseInt(btn.getAttribute('data-id'));
+        const anime = state.animeList.find(a => a.id === animeId);
+        if (anime) toggleWatchlist(anime);
+      });
+    });
+
     renderPagination();
   }
 
   // Get anime card markup
   function getAnimeCardHtml(anime) {
-    const title = anime.title.english || anime.title.romaji || anime.title.native;
+    const title = escapeHtml(anime.title.english || anime.title.romaji || anime.title.native);
     const rating = anime.averageScore ? `${anime.averageScore}%` : 'N/A';
     const format = anime.format ? anime.format.replace('_', ' ') : 'UNKNOWN';
-    const studio = anime.studios && anime.studios.nodes && anime.studios.nodes.length > 0 
-      ? anime.studios.nodes[0].name 
-      : 'Unknown Studio';
+    const studio = escapeHtml(
+      anime.studios && anime.studios.nodes && anime.studios.nodes.length > 0
+        ? anime.studios.nodes[0].name
+        : 'Unknown Studio'
+    );
     const episodesStr = anime.episodes ? `${anime.episodes} Ep` : 'Ongoing';
     const themeColor = anime.coverImage.color || '#3b82f6';
     const themeColorRgb = hexToRgb(themeColor);
+    const inWatchlist = !!getGuestEntry(anime.id);
 
     return `
       <div class="anime-card" data-id="${anime.id}" style="--card-theme-color: ${themeColor}; --card-theme-color-rgb: ${themeColorRgb};">
@@ -307,6 +374,9 @@ if (typeof window === 'undefined') {
             <i class="fa-solid fa-star"></i> ${rating}
           </span>
           <span class="card-badge-format">${format}</span>
+          <button type="button" class="card-quick-heart${inWatchlist ? ' active' : ''}" data-id="${anime.id}" title="${inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}">
+            <i class="fa-${inWatchlist ? 'solid' : 'regular'} fa-heart"></i>
+          </button>
           <img src="${anime.coverImage.extraLarge || anime.coverImage.large}" alt="${title}" loading="lazy">
         </div>
         <div class="anime-card-content">
@@ -416,7 +486,7 @@ if (typeof window === 'undefined') {
     document.getElementById('modal-title-alt').textContent = anime.title.native || anime.title.romaji || '';
 
     document.getElementById('modal-stat-score').textContent = anime.averageScore ? `${anime.averageScore}%` : 'N/A';
-    document.getElementById('modal-stat-pop').textContent = anime.popularity.toLocaleString();
+    document.getElementById('modal-stat-pop').textContent = anime.popularity != null ? anime.popularity.toLocaleString() : 'N/A';
     
     document.getElementById('modal-info-format').textContent = anime.format ? anime.format.replace('_', ' ') : 'N/A';
     document.getElementById('modal-info-episodes').textContent = anime.episodes || 'Ongoing';
@@ -492,7 +562,7 @@ if (typeof window === 'undefined') {
     // Bind heart button
     const cleanFavBtn = favBtn.cloneNode(true);
     favBtn.replaceWith(cleanFavBtn);
-    cleanFavBtn.addEventListener('click', () => toggleWatchlist(anime.id));
+    cleanFavBtn.addEventListener('click', () => toggleWatchlist(anime));
 
     // Bind Stars Hover and Click handlers
     if (starsContainer) {
@@ -511,7 +581,7 @@ if (typeof window === 'undefined') {
         });
         star.addEventListener('click', (e) => {
           const val = parseInt(e.target.getAttribute('data-value'));
-          saveRating(anime.id, val * 20);
+          saveRating(anime, val * 20);
         });
       });
     }
@@ -551,39 +621,57 @@ if (typeof window === 'undefined') {
     });
   }
 
-  // Add/remove anime from watchlist (localStorage)
-  async function toggleWatchlist(mediaId) {
+  // Add/remove anime from watchlist (localStorage). Accepts the full anime
+  // object (not just its id) so title/cover can be cached in the entry —
+  // needed so the watchlist modal can render it even after it scrolls off
+  // the currently loaded page (see renderWatchlistModal).
+  async function toggleWatchlist(anime) {
+    const mediaId = anime.id;
     const list = getGuestWatchlist();
-    const inList = state.activeAnimeLibraryEntry && state.activeAnimeLibraryEntry.id;
+    const alreadyIn = list.some(e => e.mediaId === mediaId);
 
-    if (inList) {
+    if (alreadyIn) {
       saveGuestWatchlist(list.filter(e => e.mediaId !== mediaId));
       state.activeAnimeLibraryEntry = { id: null, status: 'REMOVE', score: 0 };
       updateHeartUI(false);
       updateStarsUI(0);
+      updateCardHeartUI(mediaId, false);
     } else {
-      list.push({ mediaId, status: 'CURRENT', score: 0 });
+      list.push(buildWatchlistEntry(anime));
       saveGuestWatchlist(list);
       state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: 0 };
       updateHeartUI(true);
+      updateCardHeartUI(mediaId, true);
     }
     updateWatchlistBadge();
   }
 
-  // Save score rating (localStorage)
-  function saveRating(mediaId, scoreValue) {
+  // Save score rating (localStorage). Accepts the full anime object for the
+  // same caching reason as toggleWatchlist above.
+  function saveRating(anime, scoreValue) {
+    const mediaId = anime.id;
     const list = getGuestWatchlist();
     const existing = list.find(e => e.mediaId === mediaId);
     if (existing) {
       existing.score = scoreValue;
     } else {
-      list.push({ mediaId, status: 'CURRENT', score: scoreValue });
+      list.push(buildWatchlistEntry(anime, { score: scoreValue }));
     }
     saveGuestWatchlist(list);
     state.activeAnimeLibraryEntry = { id: mediaId, status: 'CURRENT', score: scoreValue };
     updateHeartUI(true);
     updateStarsUI(scoreValue);
+    updateCardHeartUI(mediaId, true);
     updateWatchlistBadge();
+  }
+
+  // Sync a card's quick-heart icon in the currently rendered grid, if present
+  function updateCardHeartUI(mediaId, isInList) {
+    const btn = document.querySelector(`.card-quick-heart[data-id="${mediaId}"]`);
+    if (!btn) return;
+    btn.classList.toggle('active', isInList);
+    btn.innerHTML = isInList ? '<i class="fa-solid fa-heart"></i>' : '<i class="fa-regular fa-heart"></i>';
+    btn.title = isInList ? 'Remove from Watchlist' : 'Add to Watchlist';
   }
 
   // Debounce search function
@@ -633,10 +721,11 @@ if (typeof window === 'undefined') {
 
     body.innerHTML = list.map(entry => {
       const anime = state.animeList.find(a => a.id === entry.mediaId);
-      const title = anime
+      const rawTitle = anime
         ? (anime.title.english || anime.title.romaji || anime.title.native)
-        : `Anime #${entry.mediaId}`;
-      const cover = anime ? (anime.coverImage.large || anime.coverImage.extraLarge) : '';
+        : (entry.title || `Anime #${entry.mediaId}`);
+      const title = escapeHtml(rawTitle);
+      const cover = anime ? (anime.coverImage.large || anime.coverImage.extraLarge) : (entry.cover || '');
       const starCount = entry.score ? Math.round(entry.score / 20) : 0;
       const starsHtml = starCount > 0
         ? Array.from({ length: 5 }, (_, i) =>
@@ -666,6 +755,7 @@ if (typeof window === 'undefined') {
         const updated = getGuestWatchlist().filter(e => e.mediaId !== mediaId);
         saveGuestWatchlist(updated);
         updateWatchlistBadge();
+        updateCardHeartUI(mediaId, false);
         renderWatchlistModal();
         // If this is the currently open anime, update its heart
         if (state.activeAnimeLibraryEntry && state.activeAnimeLibraryEntry.id === mediaId) {
@@ -711,10 +801,68 @@ if (typeof window === 'undefined') {
 
   // DOM Content Loaded initializations
   document.addEventListener('DOMContentLoaded', async () => {
+
+  const themeBtn = document.getElementById('theme-toggle-btn');
+
+
+  if (themeBtn) {
+
+    const themeIcon = themeBtn.querySelector('i');
+
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('anivibe-theme');
+
+
+    if (savedTheme === 'light') {
+
+      document.body.classList.add('light-mode');
+
+      if (themeIcon) {
+        themeIcon.className = 'fa-solid fa-sun';
+      }
+
+    }
+
+
+
+    themeBtn.addEventListener('click', () => {
+
+
+      document.body.classList.toggle('light-mode');
+
+
+      const isLight =
+        document.body.classList.contains('light-mode');
+
+      // Save preference
+      localStorage.setItem(
+        'anivibe-theme',
+        isLight ? 'light' : 'dark'
+      );
+
+      // Change icon
+      if (themeIcon) {
+
+        if (isLight) {
+
+          themeIcon.className = 'fa-solid fa-sun';
+
+        } else {
+
+          themeIcon.className = 'fa-solid fa-moon';
+
+        }
+      }
+    });
+  }
+
     const searchInput = document.getElementById('search-input');
     const searchForm = document.getElementById('search-form');
+    const searchClearBtn = document.getElementById('search-clear-btn');
     const genreFilter = document.getElementById('genre-filter');
     const formatFilter = document.getElementById('format-filter');
+    const sortFilter = document.getElementById('sort-filter');
     const closeModalBtn = document.getElementById('modal-close-btn');
     const modalBackdrop = document.getElementById('details-modal');
     const retryBtn = document.getElementById('retry-btn');
@@ -724,13 +872,31 @@ if (typeof window === 'undefined') {
 
     updateWatchlistBadge();
 
+    function toggleClearBtn() {
+      if (searchClearBtn) searchClearBtn.style.display = searchInput.value ? 'flex' : 'none';
+    }
+
     const handleSearch = debounce(() => {
       state.searchQuery = searchInput.value;
       state.currentPage = 1;
       fetchAnime();
     }, 400);
 
-    searchInput.addEventListener('input', handleSearch);
+    searchInput.addEventListener('input', () => {
+      toggleClearBtn();
+      handleSearch();
+    });
+
+    if (searchClearBtn) {
+      searchClearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        toggleClearBtn();
+        state.searchQuery = '';
+        state.currentPage = 1;
+        fetchAnime();
+        searchInput.focus();
+      });
+    }
 
     searchForm.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -739,15 +905,27 @@ if (typeof window === 'undefined') {
       fetchAnime();
     });
 
+    // Genre/format/sort are all sent to the AniList API (see fetchAnime),
+    // so changing any of them re-fetches rather than just re-rendering.
     genreFilter.addEventListener('change', (e) => {
       state.selectedGenre = e.target.value;
-      renderState();
+      state.currentPage = 1;
+      fetchAnime();
     });
 
     formatFilter.addEventListener('change', (e) => {
       state.selectedFormat = e.target.value;
-      renderState();
+      state.currentPage = 1;
+      fetchAnime();
     });
+
+    if (sortFilter) {
+      sortFilter.addEventListener('change', (e) => {
+        state.sortBy = e.target.value;
+        state.currentPage = 1;
+        fetchAnime();
+      });
+    }
 
     closeModalBtn.addEventListener('click', closeModal);
     modalBackdrop.addEventListener('click', (e) => {

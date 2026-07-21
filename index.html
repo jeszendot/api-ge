@@ -89,6 +89,7 @@
           <option value="MUSIC">Music</option>
         </select>
 
+
           <!-- Sort Order -->
           <select id="sort-filter" class="filter-dropdown">
             <option value="POPULARITY_DESC">Popularity</option>
@@ -98,13 +99,28 @@
 
           </select>
         </div>
+
+        <!-- Sort Order -->
+        <select id="sort-filter" class="filter-dropdown">
+          <option value="POPULARITY_DESC">Sort: Popularity</option>
+          <option value="SCORE_DESC">Sort: Highest Score</option>
+          <option value="TRENDING_DESC">Sort: Trending</option>
+          <option value="START_DATE_DESC">Sort: Newest</option>
+
+        </select>
+      </div>
       
       <div class="filter-right">
         <!-- Dynamic badge or status indicator can go here -->
+         <button id="random-anime-btn" class="search-button">
+           <i class="fa-solid fa-dice"></i>
+             Random Anime
+        </button>
       </div>
     </div>
 
     <!-- Results Count bar -->
+     <div id="recent-viewed-bar" class="recent-viewed-bar"></div>
     <div class="results-count-bar">
       <span id="results-count">Connecting to the anime space...</span>
     </div>

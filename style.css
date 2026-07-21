@@ -1252,5 +1252,74 @@ body.light-mode::-webkit-scrollbar-track {
 body.light-mode::-webkit-scrollbar-thumb {
 
   background: #cbd5e1;
+=======
+.recent-viewed-bar{
+
+display:flex;
+align-items:center;
+gap:10px;
+flex-wrap:wrap;
+margin:15px 0;
+
+}
+
+.recent-chip{
+
+padding:6px 12px;
+background:var(--bg-surface);
+border:1px solid var(--border-color);
+border-radius:20px;
+cursor:pointer;
+font-size:.8rem;
+transition:.2s;
+
+}
+
+.recent-chip:hover{
+
+border-color:var(--theme-color);
+color:var(--theme-color);
+
+}
+#recent-viewed-bar{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+
+.recent-header{
+  width:100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+
+
+.clear-recent-btn{
+
+  background:#ef4444;
+  color:white;
+
+  border:none;
+  padding:6px 14px;
+
+  border-radius:8px;
+
+  cursor:pointer;
+
+  font-size:13px;
+
+  transition:.2s;
+
+}
+
+
+.clear-recent-btn:hover{
+
+  background:#dc2626;
 
 }

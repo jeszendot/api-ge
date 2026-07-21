@@ -1,3 +1,55 @@
+
+// AniVibe Unified Controller
+//
+// [DONE — fixed in this pass]
+//   - Genre/format now sent to AniList itself (GRAPHQL_QUERY + fetchAnime) and
+//     refetched on change, instead of only filtering the current page client-side.
+//   - Sort dropdown wired up (#sort-filter -> state.sortBy -> GRAPHQL_QUERY $sort).
+//   - Watchlist entries now cache {title, cover} (buildWatchlistEntry) so items
+//     still render correctly in the watchlist modal after scrolling off page.
+//   - openModal() guards against null anime.popularity before toLocaleString().
+//   - Card title/studio interpolations now escaped via escapeHtml() before
+//     going into innerHTML.
+//   - Node static file server normalizes the resolved path and rejects anything
+//     that escapes __dirname (path traversal guard).
+//   - fetchAnime() now checks for HTTP 429 and auto-retries after Retry-After.
+//   - Added: clear (×) button in the search input; quick-add-to-watchlist heart
+//     directly on each grid card; total result count shown in the results bar.
+//
+// TODO / still open:
+// [Bugs]
+//   - fetchAnime() still has no request-ordering guard (no AbortController/
+//     request id), so a very fast search/page/filter change in a row can let
+//     an older response overwrite a newer one.
+// [Accessibility]
+//   - Modals lack role="dialog"/aria-modal and a focus trap.
+//   - Star rating icons (<i>) aren't keyboard-reachable; should be real buttons
+//     with aria-labels.
+// [Features to consider]
+//   - "Back to top" button after paging through a long results grid.
+//   - Watchlist status beyond a single list: separate CURRENT / COMPLETED /
+//     PLAN_TO_WATCH / DROPPED buckets in the watchlist modal (the data model
+//     already stores a `status` field per entry but the UI never uses it).
+//   - Recently viewed / search history (localStorage), shown as quick-pick chips
+//     under the search bar.
+//   - Export/import watchlist as JSON, since it's localStorage-only and tied to
+//     one browser/device.
+//   - Related/recommended anime section in the detail modal (AniList's `Media`
+//     query supports `recommendations`).
+//   - Adult content toggle (AniList's `isAdult` field + `Page(..., isAdult: false)`
+//     filtering) since the current query doesn't exclude or flag it.
+//   - Year/season filter (AniList `seasonYear`/`season` args) alongside the
+//     existing genre/format/sort dropdowns.
+//   - Character list + voice actors in the detail modal (`Media.characters`).
+//   - Infinite scroll as an alternative/toggle to numbered pagination.
+//   - Keyboard shortcut ("/" to focus search, Esc already closes modals).
+//   - Share button on the detail modal that copies a deep link
+//     (e.g. ?anime=12345) so a specific title can be linked directly; would need
+//     a small router to read the query param on load and auto-open that modal.
+//   - Light theme toggle, since the design system is currently dark-only.
+//   - Toast/snackbar confirmation ("Added to watchlist") instead of the silent
+//     heart-icon-only feedback, for clearer state changes.
+//
 if (typeof window === 'undefined') {
   // Node.js Backend Server (Port 8080)
   const http = require('http');
@@ -121,6 +173,36 @@ if (typeof window === 'undefined') {
   };
 
   // Guest Watchlist Helpers (localStorage-based, no login required)
+ function getRecentViewed(){
+
+try{
+
+return JSON.parse(localStorage.getItem("recent_viewed")||"[]");
+
+}catch{
+
+return[];
+
+}
+
+}
+
+function saveRecentViewed(id){
+
+let list=getRecentViewed();
+
+list=list.filter(x=>x!==id);
+
+list.unshift(id);
+
+list=list.slice(0,10);
+
+localStorage.setItem(
+"recent_viewed",
+JSON.stringify(list)
+);
+
+}
   function getGuestWatchlist() {
     try { return JSON.parse(localStorage.getItem('guest_watchlist') || '[]'); }
     catch { return []; }
@@ -339,6 +421,9 @@ if (typeof window === 'undefined') {
       });
     });
 
+
+    renderRecentViewed();
+
     // Quick watchlist toggle straight from the grid, without opening the modal
     document.querySelectorAll('.card-quick-heart').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -464,7 +549,9 @@ if (typeof window === 'undefined') {
   };
 
   // Open modal details page
+
   async function openModal(anime) {
+    saveRecentViewed(anime.id);
     const modal = document.getElementById('details-modal');
     const themeColor = anime.coverImage.color || '#3b82f6';
     const themeColorRgb = hexToRgb(themeColor);
@@ -866,6 +953,7 @@ if (typeof window === 'undefined') {
     const closeModalBtn = document.getElementById('modal-close-btn');
     const modalBackdrop = document.getElementById('details-modal');
     const retryBtn = document.getElementById('retry-btn');
+    const randomBtn = document.getElementById('random-anime-btn');
     const watchlistHeaderBtn = document.getElementById('watchlist-header-btn');
     const watchlistCloseBtn = document.getElementById('watchlist-modal-close-btn');
     const watchlistModalBackdrop = document.getElementById('watchlist-modal');
@@ -949,8 +1037,81 @@ if (typeof window === 'undefined') {
     retryBtn.addEventListener('click', () => {
       fetchAnime();
     });
+    randomBtn.addEventListener('click', () => {
+
+    if(state.animeList.length===0) return;
+
+    const random =
+        state.animeList[
+            Math.floor(Math.random()*state.animeList.length)
+        ];
+
+    openModal(random);
+
+});
 
     fetchAnime();
   });
+function renderRecentViewed(){
 
+  const bar = document.getElementById("recent-viewed-bar");
+
+  if(!bar) return;
+
+  const ids = getRecentViewed();
+
+  if(ids.length === 0){
+    bar.innerHTML = "";
+    return;
+  }
+
+
+  bar.innerHTML = `
+    <div class="recent-header">
+      <strong>Recently Viewed:</strong>
+      <button id="clear-recent-btn" class="clear-recent-btn">
+        Clear All
+      </button>
+    </div>
+  `;
+
+
+  ids.forEach(id=>{
+
+    const anime = state.animeList.find(a=>a.id===id);
+
+    if(anime){
+
+      const span=document.createElement("span");
+
+      span.className="recent-chip";
+
+      span.innerText =
+        anime.title.english ||
+        anime.title.romaji;
+
+      span.onclick=()=>openModal(anime);
+
+      bar.appendChild(span);
+
+    }
+
+  });
+
+
+  const clearBtn=document.getElementById("clear-recent-btn");
+
+  if(clearBtn){
+
+    clearBtn.onclick=()=>{
+
+      localStorage.removeItem("recent_viewed");
+
+      renderRecentViewed();
+
+    };
+
+  }
+
+}
 }

@@ -111,6 +111,36 @@ if (typeof window === 'undefined') {
   };
 
   // Guest Watchlist Helpers (localStorage-based, no login required)
+ function getRecentViewed(){
+
+try{
+
+return JSON.parse(localStorage.getItem("recent_viewed")||"[]");
+
+}catch{
+
+return[];
+
+}
+
+}
+
+function saveRecentViewed(id){
+
+let list=getRecentViewed();
+
+list=list.filter(x=>x!==id);
+
+list.unshift(id);
+
+list=list.slice(0,10);
+
+localStorage.setItem(
+"recent_viewed",
+JSON.stringify(list)
+);
+
+}
   function getGuestWatchlist() {
     try { return JSON.parse(localStorage.getItem('guest_watchlist') || '[]'); }
     catch { return []; }
@@ -285,6 +315,7 @@ if (typeof window === 'undefined') {
       });
     });
 
+    renderRecentViewed();
     renderPagination();
   }
 
@@ -394,7 +425,9 @@ if (typeof window === 'undefined') {
   };
 
   // Open modal details page
+
   async function openModal(anime) {
+    saveRecentViewed(anime.id);
     const modal = document.getElementById('details-modal');
     const themeColor = anime.coverImage.color || '#3b82f6';
     const themeColorRgb = hexToRgb(themeColor);
@@ -718,6 +751,7 @@ if (typeof window === 'undefined') {
     const closeModalBtn = document.getElementById('modal-close-btn');
     const modalBackdrop = document.getElementById('details-modal');
     const retryBtn = document.getElementById('retry-btn');
+    const randomBtn = document.getElementById('random-anime-btn');
     const watchlistHeaderBtn = document.getElementById('watchlist-header-btn');
     const watchlistCloseBtn = document.getElementById('watchlist-modal-close-btn');
     const watchlistModalBackdrop = document.getElementById('watchlist-modal');
@@ -771,8 +805,59 @@ if (typeof window === 'undefined') {
     retryBtn.addEventListener('click', () => {
       fetchAnime();
     });
+    randomBtn.addEventListener('click', () => {
+
+    if(state.animeList.length===0) return;
+
+    const random =
+        state.animeList[
+            Math.floor(Math.random()*state.animeList.length)
+        ];
+
+    openModal(random);
+
+});
 
     fetchAnime();
   });
+  function renderRecentViewed(){
+
+const bar=document.getElementById("recent-viewed-bar");
+
+if(!bar)return;
+
+const ids=getRecentViewed();
+
+if(ids.length===0){
+
+bar.innerHTML="";
+
+return;
+
+}
+
+bar.innerHTML="<strong>Recently Viewed:</strong> ";
+
+ids.forEach(id=>{
+
+const anime=state.animeList.find(a=>a.id===id);
+
+if(anime){
+
+const span=document.createElement("span");
+
+span.className="recent-chip";
+
+span.innerText=anime.title.english||anime.title.romaji;
+
+span.onclick=()=>openModal(anime);
+
+bar.appendChild(span);
+
+}
+
+});
+
+}
 
 }

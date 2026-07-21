@@ -1111,3 +1111,31 @@ body {
   background: rgba(239, 68, 68, 0.1);
   border-color: rgba(239, 68, 68, 0.3);
 }
+.recent-viewed-bar{
+
+display:flex;
+align-items:center;
+gap:10px;
+flex-wrap:wrap;
+margin:15px 0;
+
+}
+
+.recent-chip{
+
+padding:6px 12px;
+background:var(--bg-surface);
+border:1px solid var(--border-color);
+border-radius:20px;
+cursor:pointer;
+font-size:.8rem;
+transition:.2s;
+
+}
+
+.recent-chip:hover{
+
+border-color:var(--theme-color);
+color:var(--theme-color);
+
+}

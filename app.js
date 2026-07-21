@@ -820,44 +820,66 @@ JSON.stringify(list)
 
     fetchAnime();
   });
-  function renderRecentViewed(){
+function renderRecentViewed(){
 
-const bar=document.getElementById("recent-viewed-bar");
+  const bar = document.getElementById("recent-viewed-bar");
 
-if(!bar)return;
+  if(!bar) return;
 
-const ids=getRecentViewed();
+  const ids = getRecentViewed();
 
-if(ids.length===0){
+  if(ids.length === 0){
+    bar.innerHTML = "";
+    return;
+  }
 
-bar.innerHTML="";
 
-return;
+  bar.innerHTML = `
+    <div class="recent-header">
+      <strong>Recently Viewed:</strong>
+      <button id="clear-recent-btn" class="clear-recent-btn">
+        Clear All
+      </button>
+    </div>
+  `;
+
+
+  ids.forEach(id=>{
+
+    const anime = state.animeList.find(a=>a.id===id);
+
+    if(anime){
+
+      const span=document.createElement("span");
+
+      span.className="recent-chip";
+
+      span.innerText =
+        anime.title.english ||
+        anime.title.romaji;
+
+      span.onclick=()=>openModal(anime);
+
+      bar.appendChild(span);
+
+    }
+
+  });
+
+
+  const clearBtn=document.getElementById("clear-recent-btn");
+
+  if(clearBtn){
+
+    clearBtn.onclick=()=>{
+
+      localStorage.removeItem("recent_viewed");
+
+      renderRecentViewed();
+
+    };
+
+  }
 
 }
-
-bar.innerHTML="<strong>Recently Viewed:</strong> ";
-
-ids.forEach(id=>{
-
-const anime=state.animeList.find(a=>a.id===id);
-
-if(anime){
-
-const span=document.createElement("span");
-
-span.className="recent-chip";
-
-span.innerText=anime.title.english||anime.title.romaji;
-
-span.onclick=()=>openModal(anime);
-
-bar.appendChild(span);
-
-}
-
-});
-
-}
-
 }

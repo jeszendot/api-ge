@@ -1,3 +1,4 @@
+
 // AniVibe Unified Controller
 //
 // [DONE — fixed in this pass]
@@ -419,6 +420,7 @@ JSON.stringify(list)
         if (anime) openModal(anime);
       });
     });
+
 
     renderRecentViewed();
 
@@ -886,6 +888,62 @@ JSON.stringify(list)
 
   // DOM Content Loaded initializations
   document.addEventListener('DOMContentLoaded', async () => {
+
+  const themeBtn = document.getElementById('theme-toggle-btn');
+
+
+  if (themeBtn) {
+
+    const themeIcon = themeBtn.querySelector('i');
+
+
+    // Load saved theme
+    const savedTheme = localStorage.getItem('anivibe-theme');
+
+
+    if (savedTheme === 'light') {
+
+      document.body.classList.add('light-mode');
+
+      if (themeIcon) {
+        themeIcon.className = 'fa-solid fa-sun';
+      }
+
+    }
+
+
+
+    themeBtn.addEventListener('click', () => {
+
+
+      document.body.classList.toggle('light-mode');
+
+
+      const isLight =
+        document.body.classList.contains('light-mode');
+
+      // Save preference
+      localStorage.setItem(
+        'anivibe-theme',
+        isLight ? 'light' : 'dark'
+      );
+
+      // Change icon
+      if (themeIcon) {
+
+        if (isLight) {
+
+          themeIcon.className = 'fa-solid fa-sun';
+
+        } else {
+
+          themeIcon.className = 'fa-solid fa-moon';
+
+        }
+      }
+    });
+  }
+
     const searchInput = document.getElementById('search-input');
     const searchForm = document.getElementById('search-form');
     const searchClearBtn = document.getElementById('search-clear-btn');
